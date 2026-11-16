@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
 const products = [
@@ -10,8 +10,8 @@ const products = [
     { size: "L", pieces: 16, toppings: [{ name: "Original", price: 85000 }, { name: "Mix cheese / mix spicy", price: 88000 }, { name: "Cheese atau spicy", price: 90000 }, { name: "Cheesy melt", price: 98000 }, { name: "Full mix", price: 90000 }] },
     { size: "XL", pieces: 28, toppings: [{ name: "Full mix", price: 155000 }] },
   ] },
-  { id: "Dimsum Goreng Keju Lumer", name: "Dimsum Goreng Keju Lumer", category: "Dimsum Mentai", weight: "Pilih isi", price: 26000, oldPrice: 0, discount: 0, popular: false, image: "/images/dimsum-goreng-keju-lumer.png", description: "Dimsum goreng dengan isian keju lumer.", variants: [{ size: "Isi 3", pieces: 3, toppings: [{ name: "Keju lumer", price: 26000 }] }, { size: "Isi 6", pieces: 6, toppings: [{ name: "Keju lumer", price: 50000 }] }] },
-  { id: "Dimsum Goreng Mentai", name: "Dimsum Goreng Mentai", category: "Dimsum Mentai", weight: "Dimsum goreng mentai", price: 30000, oldPrice: 0, discount: 0, popular: false, image: "/images/dimsum-goreng.png", description: "Dimsum goreng dengan saus mentai gurih." },
+  { id: "Dimsum Goreng Keju Lumer", name: "Dimsum Goreng Keju Lumer", category: "Dimsum Mentai", weight: "Pilih isi", price: 26000, oldPrice: 0, discount: 0, popular: false, image: "/images/dimsum-goreng-keju-lumer.png", description: "Dimsum goreng dengan isian keju lumer.", variants: [{ size: "S", pieces: 3, toppings: [{ name: "Keju lumer", price: 26000 }] }, { size: "M", pieces: 6, toppings: [{ name: "Keju lumer", price: 50000 }] }] },
+  { id: "Dimsum Goreng Mentai", name: "Dimsum Goreng Mentai", category: "Dimsum Mentai", weight: "", price: 30000, oldPrice: 0, discount: 0, popular: false, image: "/images/dimsum-goreng.png", description: "Dimsum goreng dengan saus mentai gurih." },
   { id: "Dimsum Kukus", name: "Dimsum Kukus", category: "Dimsum Mentai", weight: "6 pcs", price: 25000, oldPrice: 0, discount: 0, popular: false, image: "/images/dimsum-mentai.png", description: "Dimsum kukus lembut, isi 6." },
   { id: "Special Platter", name: "Special Platter", category: "Dimsum Mentai", weight: "2 pcs · 110g", price: 90000, oldPrice: 0, discount: 0, popular: true, image: "/images/special-platter.png", description: "Two soft, chewy cookies with toasted milk, pistachio kunafa crunch, and a delicate cocoa finish." },
   { id: "Mix Platter", name: "Mix Platter", category: "Dimsum Mentai", weight: "2 pcs · 110g", price: 78000, oldPrice: 0, discount: 0, popular: false, image: "/images/mix-platter.png", description: "Two soft, chewy cookies with toasted milk, pistachio kunafa crunch, and a delicate cocoa finish." },
@@ -47,9 +47,12 @@ export default function Home() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [catalogSearch, setCatalogSearch] = useState("");
-  const [recentSearches, setRecentSearches] = useState(["dubai"]);
-  const [recentlyViewed, setRecentlyViewed] = useState([products[1]]);
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [recentSearchesLoaded, setRecentSearchesLoaded] = useState(false);
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [recentlyViewedLoaded, setRecentlyViewedLoaded] = useState(false);
   const [favorites, setFavorites] = useState([]);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
   const [bag, setBag] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -58,6 +61,74 @@ export default function Home() {
   const [selectedTopping, setSelectedTopping] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [toast, setToast] = useState("");
+  useEffect(() => {
+    try {
+      const savedSearches = window.localStorage.getItem("delicea-recent-searches");
+      if (savedSearches === null) {
+        setRecentSearches(["dubai"]);
+      } else {
+        const parsedSearches = JSON.parse(savedSearches);
+        setRecentSearches(Array.isArray(parsedSearches) ? parsedSearches.filter((term) => typeof term === "string").slice(0, 6) : []);
+      }
+    } catch {
+      setRecentSearches([]);
+    } finally {
+      setRecentSearchesLoaded(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (!recentSearchesLoaded) return;
+    try {
+      window.localStorage.setItem("delicea-recent-searches", JSON.stringify(recentSearches));
+    } catch {
+      // Keep search usable if browser storage is unavailable.
+    }
+  }, [recentSearches, recentSearchesLoaded]);
+  useEffect(() => {
+    try {
+      const savedFavorites = window.localStorage.getItem("delicea-favorites");
+      if (savedFavorites) {
+        const parsedFavorites = JSON.parse(savedFavorites);
+        setFavorites(Array.isArray(parsedFavorites) ? parsedFavorites.filter((id) => typeof id === "string") : []);
+      }
+    } catch {
+      setFavorites([]);
+    } finally {
+      setFavoritesLoaded(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (!favoritesLoaded) return;
+    try {
+      window.localStorage.setItem("delicea-favorites", JSON.stringify(favorites));
+    } catch {
+      // Keep favorites usable if browser storage is unavailable.
+    }
+  }, [favorites, favoritesLoaded]);
+  useEffect(() => {
+    try {
+      const savedViewedIds = window.localStorage.getItem("delicea-recently-viewed");
+      if (savedViewedIds) {
+        const parsedIds = JSON.parse(savedViewedIds);
+        const viewedProducts = Array.isArray(parsedIds)
+          ? parsedIds.map((id) => products.find((product) => product.id === id)).filter(Boolean).slice(0, 5)
+          : [];
+        setRecentlyViewed(viewedProducts);
+      }
+    } catch {
+      setRecentlyViewed([]);
+    } finally {
+      setRecentlyViewedLoaded(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (!recentlyViewedLoaded) return;
+    try {
+      window.localStorage.setItem("delicea-recently-viewed", JSON.stringify(recentlyViewed.map((product) => product.id)));
+    } catch {
+      // Keep product browsing usable if browser storage is unavailable.
+    }
+  }, [recentlyViewed, recentlyViewedLoaded]);
   const count = bag.reduce((sum, item) => sum + item.qty, 0);
   const subtotal = bag.reduce((sum, item) => sum + item.price * item.qty, 0);
   const shownProducts = useMemo(() => {
@@ -123,10 +194,11 @@ export default function Home() {
   const selectedSizeOption = selected?.variants?.find((variant) => variant.size === selectedSize);
   const selectedToppingOption = selectedSizeOption?.toppings.find((topping) => topping.name === selectedTopping);
   const selectedVariant = selectedToppingOption ? { size: selectedSizeOption.size, pieces: selectedSizeOption.pieces, topping: selectedToppingOption.name, price: selectedToppingOption.price } : null;
+  const modalFavoriteButton = <button type="button" className={`modal-favorite-button ${favorites.includes(selected?.id) ? "is-favorite" : ""}`} aria-label={favorites.includes(selected?.id) ? "Hapus dari favorit" : "Tambah ke favorit"} aria-pressed={favorites.includes(selected?.id)} onClick={() => toggleFavorite(selected)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg></button>;
   const renderProducts = (items, gridId) => items.length ? <div className="product-grid" id={gridId}>{items.map((product) => <article className="product-card" key={product.id}>
     <div className="product-art" role="button" tabIndex={0} aria-label={`Lihat ${product.name}`} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openProduct(product); }}>
       <Image src={imageUrl(product.image)} alt={product.name} fill sizes="(max-width: 767px) 50vw, 33vw"/>
-      {product.popular && <span className="popular-tag">BEST SELLER</span>}
+      {product.popular && <span className="popular-tag">Terlaris</span>}
       {product.discount > 0 && <span className="discount-tag">{product.discount}%</span>}
       <button className={`favorite-button ${favorites.includes(product.id) ? "is-favorite" : ""}`} aria-label={favorites.includes(product.id) ? "Hapus dari favorit" : "Tambah ke favorit"} onClick={(event) => { event.stopPropagation(); toggleFavorite(product); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg></button>
     </div>
@@ -143,7 +215,7 @@ export default function Home() {
       <nav className="store-nav"><a className={!allProducts && activeCategory === "Dubai Chewy" ? "selected" : ""} href="#home" onClick={(event) => { event.preventDefault(); setAllProducts(false); setActiveCategory("Dubai Chewy"); }}>Home</a><a className={allProducts ? "selected" : ""} href="#products" onClick={(event) => { event.preventDefault(); setAllProducts(true); }}>All products</a></nav>
     </header>
 
-    {searchOpen && <div className="search-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setSearchOpen(false); }}><div className="search-dialog"><div className="search-top"><form className="search-form" onSubmit={(event) => { event.preventDefault(); runSearch(search); }}><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari Produk Kami" aria-label="Cari Produk Kami"/><button type="submit" aria-label="Cari"><SearchIcon/></button></form><button className="search-close" onClick={() => setSearchOpen(false)} aria-label="Tutup pencarian">×</button></div><div className={`search-content ${search.trim() ? "has-search-results" : ""}`}>{search.trim() ? <div className="search-results"><div className="search-results-heading"><h2>Produk</h2><span>{searchResults.length} Hasil Ditemukan</span></div>{searchResults.length ? <div className="search-result-list">{searchResults.map((product) => <button className="search-result" key={product.id} onClick={() => { setSearchOpen(false); openProduct(product); }}><span className="search-result-image"><Image src={imageUrl(product.image)} alt="" fill sizes="92px"/></span><span className="search-result-info"><strong>{product.name}</strong><span>{money(product.price)}</span></span></button>)}</div> : <p className="search-empty">Produk tidak ditemukan.</p>}</div> : <>{recentSearches.length > 0 && <div className="search-block"><div className="search-section-heading"><h2>Pencarian Terbaru</h2><button onClick={() => setRecentSearches([])}>Hapus semua</button></div><div className="query-list">{recentSearches.map((term) => <button className="popular-query" key={term} onClick={() => runSearch(term)}><span>{term}</span><span className="remove-query" aria-label={`Hapus pencarian ${term}`} onClick={(event) => { event.stopPropagation(); removeRecentSearch(term); }}>×</span></button>)}</div></div>}<div className={`search-block ${recentSearches.length ? "popular-block" : ""}`}><h2>Pencarian Populer</h2><button className="popular-query" onClick={() => runSearch("brown")}>brown</button></div><div className="search-block recently-block"><h2>Baru Dilihat</h2><div className="recent-grid">{recentlyViewed.map((product) => <article className="recent-card" key={product.id}><button className="recent-image" onClick={() => { setSearchOpen(false); openProduct(product); }}><Image src={imageUrl(product.image)} alt={product.name} fill sizes="200px"/></button><button type="button" className="recent-add" aria-label={`Tambahkan ${product.name} ke keranjang`} onClick={() => addToBag(product)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3M19 3v6m-3-3h6"/></svg></button><button className="recent-name" onClick={() => { setSearchOpen(false); openProduct(product); }}>{product.name}</button>{product.oldPrice > 0 && <del>{money(product.oldPrice)}</del>}<strong>{money(product.price)}</strong></article>)}</div></div></>}</div></div></div>}
+    {searchOpen && <div className="search-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setSearchOpen(false); }}><div className="search-dialog"><div className="search-top"><form className="search-form" onSubmit={(event) => { event.preventDefault(); runSearch(search); }}><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari Produk Kami" aria-label="Cari Produk Kami"/></form><button className="search-close" onClick={() => setSearchOpen(false)} aria-label="Tutup pencarian">×</button></div><div className={`search-content ${search.trim() ? "has-search-results" : ""}`}>{search.trim() ? <div className="search-results"><div className="search-results-heading"><h2>Produk</h2><span>{searchResults.length} Hasil Ditemukan</span></div>{searchResults.length ? <div className="search-result-list">{searchResults.map((product) => <button className="search-result" key={product.id} onClick={() => { setSearchOpen(false); openProduct(product); }}><span className="search-result-image"><Image src={imageUrl(product.image)} alt="" fill sizes="92px"/></span><span className="search-result-info"><strong>{product.name}</strong><span>{money(product.price)}</span></span></button>)}</div> : <p className="search-empty">Produk tidak ditemukan.</p>}</div> : <>{recentSearches.length > 0 && <div className="search-block"><div className="search-section-heading"><h2>Pencarian Terbaru</h2><button onClick={() => setRecentSearches([])}>Hapus semua</button></div><div className="query-list">{recentSearches.map((term) => <button className="popular-query" key={term} onClick={() => runSearch(term)}><span>{term}</span><span className="remove-query" aria-label={`Hapus pencarian ${term}`} onClick={(event) => { event.stopPropagation(); removeRecentSearch(term); }}>×</span></button>)}</div></div>}<div className={`search-block ${recentSearches.length ? "popular-block" : ""}`}><h2>Pencarian Populer</h2><button className="popular-query" onClick={() => runSearch("brown")}>brown</button></div><div className="search-block recently-block"><h2>Baru Dilihat</h2><div className="recent-grid">{recentlyViewed.map((product) => <article className="recent-card" key={product.id}><div className="recent-media"><button className="recent-image" onClick={() => { setSearchOpen(false); openProduct(product); }}><Image src={imageUrl(product.image)} alt={product.name} fill sizes="200px"/></button></div><button className="recent-name" onClick={() => { setSearchOpen(false); openProduct(product); }}>{product.name}</button>{product.oldPrice > 0 && <del>{money(product.oldPrice)}</del>}<strong>{money(product.price)}</strong></article>)}</div></div></>}</div></div></div>}
 
     <section className="catalog" id="home">
       {allProducts ? <div className="all-products-layout">
@@ -161,8 +233,35 @@ export default function Home() {
 
     {cartOpen && <><button className="backdrop" aria-label="Tutup keranjang" onClick={() => setCartOpen(false)}/><aside className="side-panel" aria-label="Keranjang belanja"><div className="panel-heading"><h2>Keranjang belanja <small>({count})</small></h2><button onClick={() => setCartOpen(false)} aria-label="Tutup">×</button></div>{bag.length ? <div className="bag-lines">{bag.map((item) => <div className="bag-line" key={item.cartKey ?? item.id}><Image src={imageUrl(item.image)} alt="" width={82} height={82}/><div className="bag-line-info"><strong>{item.name}</strong>{item.variantLabel && <span className="bag-variant">{item.variantLabel}</span>}<span>{money(item.price)}</span><div className="quantity"><button onClick={() => setQuantity(item.cartKey ?? item.id, -1)}>−</button><span>{item.qty}</span><button onClick={() => setQuantity(item.cartKey ?? item.id, 1)}>+</button></div></div><button className="remove-item" onClick={() => setBag((current) => current.filter((entry) => (entry.cartKey ?? entry.id) !== (item.cartKey ?? item.id)))}>Hapus</button></div>)}</div> : <div className="empty-state">Keranjang Anda masih kosong.</div>}<div className="panel-bottom"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><button onClick={() => notify(bag.length ? "Hubungi Delicea Kitchen untuk menyelesaikan pesanan." : "Keranjang Anda masih kosong.")}>Lanjutkan ke checkout</button><small>Ongkos kirim dihitung saat checkout.</small></div></aside></>}
 
-    {selected && <><button className="backdrop" aria-label="Tutup detail produk" onClick={() => setSelected(null)}/><section className="product-modal" role="dialog" aria-modal="true" aria-label={selected.name}><button className="modal-close" onClick={() => setSelected(null)} aria-label="Tutup">×</button><div className="modal-photo"><Image src={imageUrl(selected.image)} alt={selected.name} fill sizes="(max-width: 700px) 90vw, 45vw"/></div><div className="modal-detail"><span className="modal-category">{selected.category}</span><h2>{selected.name}</h2>{selected.variants ? <><div className="variant-picker"><span className="variant-label">Ukuran</span><div className="variant-size-list">{selected.variants.map((variant) => <button type="button" className={`variant-size ${selectedSize === variant.size ? "active" : ""}`} key={variant.size} onClick={() => { setSelectedSize(variant.size); setSelectedTopping(variant.toppings[0].name); }}><strong>{variant.size}</strong><span>{variant.pieces} pcs</span></button>)}</div><span className="variant-label">Varian</span><div className="variant-option-list">{selectedSizeOption?.toppings.map((topping) => <button type="button" className={`variant-option ${selectedTopping === topping.name ? "active" : ""}`} key={topping.name} onClick={() => setSelectedTopping(topping.name)}>{topping.name}</button>)}</div><div className="variant-price"><span>Harga</span><strong>{selectedVariant ? money(selectedVariant.price) : "Pilih varian"}</strong></div></div></> : <><div className="modal-prices">{selected.oldPrice > 0 && <del>{money(selected.oldPrice)}</del>}<strong>{money(selected.price)}</strong></div><p>{selected.description}</p><p className="weight-line">Berat: {selected.weight}</p></>}<p className="shipping-note">Pengiriman khusus area yang tersedia. Hubungi kami untuk konfirmasi cakupan pengiriman.</p><div className="modal-quantity"><span>Jumlah</span><div className="quantity"><button onClick={() => setSelectedQty((qty) => Math.max(1, qty - 1))}>−</button><span>{selectedQty}</span><button onClick={() => setSelectedQty((qty) => qty + 1)}>+</button></div></div><div className="modal-actions"><button onClick={() => addToBag(selected, selectedQty, selectedVariant)}>Tambah ke keranjang</button><button className="buy-now" onClick={() => { addToBag(selected, selectedQty, selectedVariant); if (!selected.variants || selectedVariant) setCartOpen(true); }}>Beli sekarang</button></div></div></section></>}
-
+    {selected && <>
+      <button className="backdrop" aria-label="Tutup detail produk" onClick={() => setSelected(null)}/>
+      <section className="product-modal" role="dialog" aria-modal="true" aria-label={selected.name}>
+        <button className="modal-close" onClick={() => setSelected(null)} aria-label="Tutup">×</button>
+        <div className="modal-photo"><Image src={imageUrl(selected.image)} alt={selected.name} fill sizes="(max-width: 700px) 90vw, 45vw"/></div>
+        <div className="modal-detail">
+          <div className="product-modal-tags">{selected.popular && <span>Terlaris</span>}<span>{selected.category}</span></div>
+          <h2>{selected.name}</h2>
+          {selected.variants ? <>
+            <div className="variant-picker">
+              <span className="variant-label">Ukuran</span>
+              <div className="variant-size-list">{selected.variants.map((variant) => <button type="button" className={`variant-size ${selectedSize === variant.size ? "active" : ""}`} key={variant.size} onClick={() => { setSelectedSize(variant.size); setSelectedTopping(variant.toppings[0].name); }}><strong>{variant.size}</strong><span>{variant.pieces} pcs</span></button>)}</div>
+              <span className="variant-label">Varian</span>
+              <div className="variant-option-list">{selectedSizeOption?.toppings.map((topping) => <button type="button" className={`variant-option ${selectedTopping === topping.name ? "active" : ""}`} key={topping.name} onClick={() => setSelectedTopping(topping.name)}>{topping.name}</button>)}</div>
+              <div className="variant-price"><span>Harga</span><strong>{selectedVariant ? money(selectedVariant.price) : "Pilih varian"}</strong>{modalFavoriteButton}</div>
+            </div>
+          </> : <>
+            <div className="modal-prices">{selected.oldPrice > 0 && <del>{money(selected.oldPrice)}</del>}<strong>{money(selected.price)}</strong>{modalFavoriteButton}</div>
+            <p>{selected.description}</p>
+          </>}
+          <div className="modal-quantity"><span>Jumlah</span><div className="quantity"><button onClick={() => setSelectedQty((qty) => Math.max(1, qty - 1))}>−</button><span>{selectedQty}</span><button onClick={() => setSelectedQty((qty) => qty + 1)}>+</button></div></div>
+          <div className="modal-actions"><button onClick={() => addToBag(selected, selectedQty, selectedVariant)}>Tambah ke Keranjang</button><button className="buy-now" onClick={() => { addToBag(selected, selectedQty, selectedVariant); if (!selected.variants || selectedVariant) setCartOpen(true); }}>Beli Sekarang</button></div>
+        </div>
+        {recentlyViewed.some((product) => product.id !== selected.id) && <section className="modal-recently-viewed" aria-label="Produk baru dilihat">
+          <h3>Baru Dilihat</h3>
+          <div className="modal-recent-grid">{recentlyViewed.filter((product) => product.id !== selected.id).map((product) => <button type="button" className="modal-recent-card" key={product.id} onClick={() => openProduct(product)}><span className="modal-recent-image"><Image src={imageUrl(product.image)} alt="" fill sizes="140px"/></span><strong>{product.name}</strong><span>{money(product.price)}</span></button>)}</div>
+        </section>}
+      </section>
+    </>}
     {accountOpen && <><button className="backdrop" aria-label="Tutup akun" onClick={() => setAccountOpen(false)}/><section className="account-modal" role="dialog" aria-modal="true"><button className="modal-close" onClick={() => setAccountOpen(false)} aria-label="Tutup">×</button><h2>Masuk ke akun</h2><p>Lihat pesanan dan simpan produk favorit Anda.</p><form onSubmit={(event) => { event.preventDefault(); setAccountOpen(false); notify("Kami akan menghubungi Anda untuk masuk."); }}><label htmlFor="accountEmail">Email</label><input id="accountEmail" type="email" placeholder="nama@email.com" required/><button type="submit">Lanjutkan</button></form></section></>}
     <div className={`toast ${toast ? "visible" : ""}`} role="status">{toast}</div>
   </main>;
